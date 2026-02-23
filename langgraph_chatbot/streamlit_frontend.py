@@ -4,7 +4,6 @@ from langchain_core.messages import HumanMessage
 import uuid
 
 
-
 # ----------- Utility functions ----------
 
 # Generate a unique thread ID for the conversation
@@ -21,6 +20,29 @@ def reset_chat():
 def add_thread(thread_id):
     if thread_id not in st.session_state['chat_threads']:
         st.session_state['chat_threads'].append(thread_id)
+
+def load_chat_history(thread_id):
+    state = chatbot.get_state(config = {
+        'configurable':{
+            'thread_id': thread_id
+        }
+    })
+    # print(state)
+    return state.values.get('messages', [])
+
+def add_title_to_chat(thread_id):
+    state = chatbot.get_state(config = {
+        'configurable':{
+            'thread_id': thread_id
+        }
+    })
+    messages = state.values.get("messages", [])
+    for msg in messages:
+        if isinstance(msg, HumanMessage):
+            # first user message → title
+            return msg.content[:35]
+    return str(thread_id)
+    
 
 # ---------- Session setup ----------
 if 'message_history' not in st.session_state:
@@ -43,8 +65,28 @@ if st.sidebar.button("New Chat"):
 
 st.sidebar.header("My Conversations")
 
-for thread_id in st.session_state['chat_threads']:
-    st.sidebar.text(thread_id)
+for thread_id in st.session_state['chat_threads'][::-1]:  # Show the most recent threads at the top
+
+    text = add_title_to_chat(thread_id)
+    if st.sidebar.button(text):
+
+        st.session_state['thread_id'] = thread_id
+
+        messages = load_chat_history(thread_id)
+        temp_messages = []
+
+        for msg in messages:
+            if isinstance(msg, HumanMessage):
+                role = 'user'
+            else:
+                role = 'assistant'
+            
+            temp_messages.append({'role': role, 'content': msg.content})
+
+        st.session_state['message_history'] = temp_messages
+
+
+
 
 
 # loading the conversation history before the main ui,
